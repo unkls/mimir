@@ -346,21 +346,21 @@ require (
 )
 
 // https://github.com/prometheus/common/pull/796
-replace github.com/prometheus/common => github.com/juliusmh/common v0.64.1-0.20250624113919-24e726159693
+replace github.com/prometheus/common => github.com/prometheus/common v0.65.1-0.20250630090155-0c40a7a661aa
 
 // https://github.com/grafana/mimir-prometheus/pull/892
-replace github.com/prometheus/prometheus => github.com/juliusmh/mimir-prometheus v1.8.2-0.20250624215857-6dc221c6fc87
+replace github.com/prometheus/prometheus => github.com/grafana/mimir-prometheus v1.8.2-0.20250630084904-7140e3b05f49
 
 // https://github.com/grafana/prometheus-alertmanager/pull/118
 replace github.com/prometheus/alertmanager => github.com/juliusmh/alertmanager v0.26.1-0.20250624114102-96969065f8d2
 
 // https://github.com/prometheus/client_golang/pull/1822
-replace github.com/prometheus/client_golang => github.com/juliusmh/client_golang v1.22.1-0.20250624113640-ef1ee5d3e20d
+replace github.com/prometheus/client_golang => github.com/prometheus/client_golang v1.22.1-0.20250630085355-39721f8c1870
 
 // https://github.com/open-telemetry/opentelemetry-go/pull/6927
-replace go.opentelemetry.io/otel => github.com/juliusmh/opentelemetry-go v1.36.1-0.20250624112939-e5a689fa3af5
+replace go.opentelemetry.io/otel => github.com/aknuds1/opentelemetry-go v0.0.0-20250630100704-56bd3c7a7c11
 
-replace go.opentelemetry.io/otel/exporters/prometheus => github.com/juliusmh/opentelemetry-go/exporters/prometheus v0.58.1-0.20250624112939-e5a689fa3af5
+replace go.opentelemetry.io/otel/exporters/prometheus => github.com/aknuds1/opentelemetry-go/exporters/prometheus v0.0.0-20250630100704-56bd3c7a7c11
 
 // Replace memberlist with our fork which includes some fixes that haven't been
 // merged upstream yet:

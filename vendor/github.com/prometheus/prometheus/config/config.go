@@ -168,6 +168,8 @@ var (
 		ScrapeProtocols:                DefaultScrapeProtocols,
 		ConvertClassicHistogramsToNHCB: false,
 		AlwaysScrapeClassicHistograms:  false,
+		MetricNameValidationScheme:     validation.UTF8NamingScheme,
+		MetricNameEscapingScheme:       model.AllowUTF8,
 	}
 
 	DefaultRuntimeConfig = RuntimeConfig{
@@ -175,7 +177,10 @@ var (
 		GoGC: getGoGC(),
 	}
 
-	// DefaultScrapeConfig is the default scrape configuration.
+	// DefaultScrapeConfig is the default scrape configuration. Users of this
+	// default MUST call Validate() on the config after creation, even if it's
+	// used unaltered, to check for parameter correctness and fill out default
+	// values that can't be set inline in this declaration.
 	DefaultScrapeConfig = ScrapeConfig{
 		// ScrapeTimeout, ScrapeInterval, ScrapeProtocols, AlwaysScrapeClassicHistograms, and ConvertClassicHistogramsToNHCB default to the configured globals.
 		MetricsPath:       "/metrics",
@@ -632,9 +637,8 @@ func (c *GlobalConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 func (c GlobalConfig) validateExternalLabels() error {
-	namingScheme := c.MetricNameValidationScheme
 	return c.ExternalLabels.Validate(func(l labels.Label) error {
-		if !namingScheme.IsValidLabelName(l.Name) {
+		if !c.MetricNameValidationScheme.IsValidLabelName(l.Name) {
 			return fmt.Errorf("%q is not a valid label name", l.Name)
 		}
 		if !model.LabelValue(l.Value).IsValid() {
@@ -914,7 +918,6 @@ func (c *ScrapeConfig) Validate(globalConfig GlobalConfig) error {
 	}
 
 	// Validate relabel configs
-	namingScheme := c.MetricNameValidationScheme
 
 	// Check for users putting URLs in target groups.
 	if len(c.RelabelConfigs) == 0 {
@@ -927,7 +930,7 @@ func (c *ScrapeConfig) Validate(globalConfig GlobalConfig) error {
 		if rlcfg == nil {
 			return errors.New("empty or null target relabeling rule in scrape config")
 		}
-		if err := rlcfg.Validate(namingScheme); err != nil {
+		if err := rlcfg.Validate(c.MetricNameValidationScheme); err != nil {
 			return errors.New("invalid relabel config: " + err.Error())
 		}
 	}
@@ -935,7 +938,7 @@ func (c *ScrapeConfig) Validate(globalConfig GlobalConfig) error {
 		if rlcfg == nil {
 			return errors.New("empty or null metric relabeling rule in scrape config")
 		}
-		if err := rlcfg.Validate(namingScheme); err != nil {
+		if err := rlcfg.Validate(c.MetricNameValidationScheme); err != nil {
 			return errors.New("invalid metric relabel config: " + err.Error())
 		}
 	}
@@ -1181,8 +1184,8 @@ type AlertmanagerConfig struct {
 	// Relabel alerts before sending to the specific alertmanager.
 	AlertRelabelConfigs []*relabel.Config `yaml:"alert_relabel_configs,omitempty"`
 
-	// Allow UTF8 Metric and Label Names. Can be blank in config files but must
-	// have a value if a AlertmanagerConfig is created programmatically.
+	// Allow UTF-8 metric and label names. Can be blank in config files but must
+	// have a value if an AlertmanagerConfig is created programmatically.
 	MetricNameValidationScheme validation.NamingScheme `yaml:"metric_name_validation_scheme,omitempty"`
 }
 
@@ -1228,13 +1231,12 @@ func (c *AlertmanagerConfig) Validate(globalConfig GlobalConfig) error {
 		return err
 	}
 
-	namingScheme := c.MetricNameValidationScheme
 	for _, rlcfg := range c.RelabelConfigs {
 		if rlcfg == nil {
 			return errors.New("empty or null Alertmanager target relabeling rule")
 		}
-		if err := rlcfg.Validate(namingScheme); err != nil {
-			return errors.New("invalid relabel config: " + err.Error())
+		if err := rlcfg.Validate(c.MetricNameValidationScheme); err != nil {
+			return fmt.Errorf("invalid relabel config: %w", err)
 		}
 	}
 
@@ -1242,8 +1244,8 @@ func (c *AlertmanagerConfig) Validate(globalConfig GlobalConfig) error {
 		if rlcfg == nil {
 			return errors.New("empty or null Alertmanager alert relabeling rule")
 		}
-		if err := rlcfg.Validate(namingScheme); err != nil {
-			return errors.New("invalid alert relabel config: " + err.Error())
+		if err := rlcfg.Validate(c.MetricNameValidationScheme); err != nil {
+			return fmt.Errorf("invalid alert relabel config: %w", err)
 		}
 	}
 
@@ -1348,7 +1350,7 @@ type RemoteWriteConfig struct {
 	AzureADConfig    *azuread.AzureADConfig  `yaml:"azuread,omitempty"`
 	GoogleIAMConfig  *googleiam.Config       `yaml:"google_iam,omitempty"`
 
-	// Allow UTF8 Metric and Label Names. Can be blank in config files but must
+	// Allow UTF-8 metric and label names. Can be blank in config files but must
 	// have a value if a RemoteWriteConfig is created programmatically.
 	MetricNameValidationScheme validation.NamingScheme `yaml:"metric_name_validation_scheme,omitempty"`
 }
@@ -1393,14 +1395,14 @@ func (c *RemoteWriteConfig) Validate(globalConfig GlobalConfig) error {
 
 	namingScheme := c.MetricNameValidationScheme.WithDefault(globalConfig.MetricNameValidationScheme)
 	if err := namingScheme.Validate(); err != nil {
-		return errors.New("invalid metric name validation scheme: " + err.Error())
+		return fmt.Errorf("invalid metric name validation scheme: %w", err)
 	}
 	for _, rlcfg := range c.WriteRelabelConfigs {
 		if rlcfg == nil {
 			return errors.New("empty or null relabeling rule in remote write config")
 		}
 		if err := rlcfg.Validate(namingScheme); err != nil {
-			return errors.New("invalid relabel config: " + err.Error())
+			return fmt.Errorf("invalid relabel config: %w", err)
 		}
 	}
 	return nil
@@ -1522,7 +1524,7 @@ type RemoteReadConfig struct {
 	// Whether to use the external labels as selectors for the remote read endpoint.
 	FilterExternalLabels bool `yaml:"filter_external_labels,omitempty"`
 
-	// Allow UTF8 Metric and Label Names. Can be blank in config files but must
+	// Allow UTF-8 metric and label names. Can be blank in config files but must
 	// have a value if a RemoteReadConfig is created programmatically.
 	MetricNameValidationScheme validation.NamingScheme `yaml:"metric_name_validation_scheme,omitempty"`
 }
