@@ -16,7 +16,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/model/timestamp"
-	"github.com/prometheus/prometheus/model/validation"
 	"github.com/prometheus/prometheus/promql"
 	"github.com/prometheus/prometheus/promql/parser"
 	"github.com/prometheus/prometheus/storage"
@@ -421,7 +420,7 @@ func isKnownFunction(name string) bool {
 // Materialize converts a query plan into an executable query.
 func (e *Engine) Materialize(ctx context.Context, plan *planning.QueryPlan, queryable storage.Queryable, opts promql.QueryOpts) (promql.Query, error) {
 	if opts == nil {
-		opts = promql.NewPrometheusQueryOpts(false, 0, validation.UTF8NamingScheme)
+		opts = promql.NewPrometheusQueryOpts(false, 0, model.UTF8Validation)
 	}
 
 	queryID, err := e.activeQueryTracker.Insert(ctx, plan.OriginalExpression+" # (materialization)")
