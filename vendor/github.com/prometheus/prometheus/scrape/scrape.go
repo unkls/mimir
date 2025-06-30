@@ -16,6 +16,7 @@ package scrape
 import (
 	"bufio"
 	"bytes"
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -149,10 +150,8 @@ func newScrapePool(cfg *config.ScrapeConfig, app storage.Appendable, offsetSeed 
 		return nil, fmt.Errorf("error creating HTTP client: %w", err)
 	}
 
-	validationScheme, err := config.ToValidationScheme(cfg.MetricNameValidationScheme)
-	if err != nil {
-		return nil, fmt.Errorf("invalid metric name validation scheme: %w", err)
-	}
+	validationScheme := cmp.Or(cfg.MetricNameValidationScheme, model.UTF8Validation)
+
 	var escapingScheme model.EscapingScheme
 	escapingScheme, err = config.ToEscapingScheme(cfg.MetricNameEscapingScheme, validationScheme)
 	if err != nil {
@@ -325,11 +324,7 @@ func (sp *scrapePool) reload(cfg *config.ScrapeConfig) error {
 	sp.config = cfg
 	oldClient := sp.client
 	sp.client = client
-	validationScheme, err := config.ToValidationScheme(cfg.MetricNameValidationScheme)
-	if err != nil {
-		return fmt.Errorf("invalid metric name validation scheme: %w", err)
-	}
-	sp.validationScheme = validationScheme
+	sp.validationScheme = cmp.Or(cfg.MetricNameValidationScheme, model.UTF8Validation)
 	var escapingScheme model.EscapingScheme
 	escapingScheme, err = model.ToEscapingScheme(cfg.MetricNameEscapingScheme)
 	if err != nil {
